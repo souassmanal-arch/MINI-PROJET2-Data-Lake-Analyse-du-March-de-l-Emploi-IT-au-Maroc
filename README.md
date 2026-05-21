@@ -22,7 +22,6 @@ mexora_rh_lake/
 │   ├── silver_nlp.py                # Extraction regex et matching des compétences IT
 │   ├── gold_aggregation.py          # Agrégations SQL (DuckDB) des tables analytiques
 │   └── utils.py                     # Configuration commune (logs, chemins, etc.)
-├── visualisations/                  # Graphiques d'analyse générés au format PNG
 ├── generate_data.py                 # Générateur de 5 000 offres d'emploi avec erreurs
 ├── referentiel_competences_it.json  # Référentiel de 300 compétences IT structurées
 ├── entreprises_it_maroc.csv         # Référentiel des entreprises IT au Maroc
