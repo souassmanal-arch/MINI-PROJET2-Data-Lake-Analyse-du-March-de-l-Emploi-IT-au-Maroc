@@ -1,0 +1,36 @@
+nom_entreprise,secteur,taille,ville_siege,site_web,type
+Capgemini Maroc,Informatique / Télécom,Grande Entreprise,Casablanca,https://www.capgemini.com/ma,SSII
+DXC Technology,Informatique / Télécom,Grande Entreprise,Casablanca,https://www.dxc.com,SSII
+Atos Maroc,Informatique / Télécom,Grande Entreprise,Casablanca,https://atos.net/fr/maroc,SSII
+SQLI Maroc,Informatique / Télécom,ETI,Rabat,https://www.sqli.com,SSII
+Alten Maroc,Informatique / Télécom,Grande Entreprise,Fès,https://www.alten.ma,SSII
+CGI Maroc,Informatique / Télécom,Grande Entreprise,Casablanca,https://www.cgi.com/fr/maroc,SSII
+Sopra Steria,Informatique / Télécom,Grande Entreprise,Casablanca,https://www.soprasteria.ma,SSII
+Involys,Informatique / Télécom,PME,Casablanca,https://www.involys.com,Produit
+Chari,E-commerce,Startup,Casablanca,https://chari.co,Startup
+HPS,Monétique / Fintech,Grande Entreprise,Casablanca,https://www.hps-worldwide.com,Produit
+Attijariwafa Bank,Banque / Assurance,Grande Entreprise,Casablanca,https://www.attijariwafabank.com,Banque
+Banque Centrale Populaire,Banque / Assurance,Grande Entreprise,Casablanca,https://www.goubcp.com,Banque
+Maroc Telecom,Télécommunications,Grande Entreprise,Rabat,https://www.iam.ma,Telecom
+Orange Maroc,Télécommunications,Grande Entreprise,Casablanca,https://www.orange.ma,Telecom
+Inwi,Télécommunications,Grande Entreprise,Casablanca,https://www.inwi.ma,Telecom
+Sofrecom Maroc,Informatique / Télécom,ETI,Rabat,https://www.sofrecom.com,Conseil
+Deloitte Morocco,Conseil / Audit,Grande Entreprise,Casablanca,https://www.deloitte.com,Conseil
+PwC Maroc,Conseil / Audit,Grande Entreprise,Casablanca,https://www.pwc.fr,Conseil
+EY Maroc,Conseil / Audit,Grande Entreprise,Casablanca,https://www.ey.com,Conseil
+Intelcia IT Solutions,Informatique / Télécom,Grande Entreprise,Casablanca,https://www.intelcia.com,SSII
+Nearshore Technologies,Informatique / Télécom,PME,Tanger,https://www.nearshore.ma,SSII
+Tanger Alliance,Logistique,ETI,Tanger,https://www.tangeralliance.com,Autre
+Wafasalaf,Crédit / Banque,Grande Entreprise,Casablanca,https://www.wafasalaf.ma,Banque
+Saham Assurance,Assurance,Grande Entreprise,Casablanca,https://www.sahamassurance.ma,Banque
+MedTech,Informatique / Télécom,ETI,Casablanca,https://www.medtech.ma,SSII
+LafargeHolcim Maroc,Industrie,Grande Entreprise,Casablanca,https://www.lafargeholcim.ma,Autre
+OCP Group,Mines / Chimie,Grande Entreprise,Casablanca,https://www.ocpgroup.ma,Autre
+Freterium,Logistique / Tech,Startup,Casablanca,https://www.freterium.com,Startup
+YoLa Fresh,AgriTech,Startup,Casablanca,https://www.yolafresh.com,Startup
+Omnidata,Informatique / Télécom,ETI,Casablanca,https://www.omnidata.ma,SSII
+Cdiscount Maroc,E-commerce,ETI,Casablanca,https://www.cdiscount.ma,Produit
+Valyans Consulting,Conseil,PME,Casablanca,https://www.valyans.com,Conseil
+M2M Group,Monétique / Tech,ETI,Casablanca,https://www.m2mgroup.com,Produit
+Novancy One,Recrutement IT,PME,Casablanca,https://www.novancy.com,Conseil
+Mexora RH,Recrutement IT,Startup,Tanger,https://www.mexora.ma,Conseil

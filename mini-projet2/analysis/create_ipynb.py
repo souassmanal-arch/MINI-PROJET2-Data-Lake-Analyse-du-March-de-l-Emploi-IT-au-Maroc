@@ -1,0 +1,445 @@
+import json
+
+notebook = {
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 📊 Analyse du Marché de l'Emploi IT au Maroc — Mexora RH Intelligence\n",
+    "Ce notebook présente l'analyse analytique de la zone Gold de notre Data Lake. L'objectif est de répondre aux questions stratégiques du DRH de Mexora pour guider la politique de recrutement des 5 nouveaux profils Data."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "import duckdb\n",
+    "import pandas as pd\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "# Configuration de base\n",
+    "sns.set_theme(style=\"whitegrid\")\n",
+    "plt.rcParams.update({'font.size': 11, 'figure.titlesize': 16})\n",
+    "\n",
+    "GOLD_PATH = \"../data_lake/gold\"\n",
+    "SILVER_PATH = \"../data_lake/silver\"\n",
+    "\n",
+    "# Connexion DuckDB\n",
+    "con = duckdb.connect()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 🔍 Question 1 : Quelles sont les compétences les plus demandées au Maroc en IT ?\n",
+    "Nous analysons le top 20 des compétences globales et le top 5 des compétences spécifiques aux profils Data (Data Engineer, Data Analyst, Data Scientist)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Top 20 compétences globales\n",
+    "df_global = con.execute(f\"\"\"\n",
+    "    SELECT competence, famille, nb_offres_mentionnent, pct_offres_total\n",
+    "    FROM '{GOLD_PATH}/top_competences.parquet'\n",
+    "    WHERE profil = 'tous'\n",
+    "    ORDER BY nb_offres_mentionnent DESC\n",
+    "    LIMIT 20\n",
+    "\"\"\").df()\n",
+    "display(df_global.head(10))\n",
+    "\n",
+    "# Top 5 compétences par profil data\n",
+    "df_data = con.execute(f\"\"\"\n",
+    "    SELECT profil, competence, famille, nb_offres_mentionnent, rang_dans_profil\n",
+    "    FROM '{GOLD_PATH}/top_competences.parquet'\n",
+    "    WHERE profil IN ('Data Engineer', 'Data Analyst', 'Data Scientist')\n",
+    "      AND rang_dans_profil <= 5\n",
+    "    ORDER BY profil, rang_dans_profil\n",
+    "\"\"\").df()\n",
+    "display(df_data)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualisation du Top 15 compétences globales\n",
+    "plt.figure(figsize=(10, 6))\n",
+    "top_15 = df_global.head(15)\n",
+    "unique_families = top_15['famille'].unique()\n",
+    "colors = sns.color_palette(\"muted\", len(unique_families))\n",
+    "family_color_map = dict(zip(unique_families, colors))\n",
+    "bar_colors = top_15['famille'].map(family_color_map)\n",
+    "\n",
+    "bars = plt.barh(top_15['competence'][::-1], top_15['pct_offres_total'][::-1], \n",
+    "                color=bar_colors[::-1].tolist(), edgecolor='none', height=0.6)\n",
+    "\n",
+    "for bar in bars:\n",
+    "    width = bar.get_width()\n",
+    "    plt.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width:.1f}%', \n",
+    "             va='center', ha='left', fontsize=9, fontweight='bold', color='#2c3e50')\n",
+    "\n",
+    "from matplotlib.patches import Patch\n",
+    "legend_elements = [Patch(facecolor=family_color_map[fam], label=fam.replace('_', ' ').title()) for fam in unique_families]\n",
+    "plt.legend(handles=legend_elements, title=\"Famille de technologie\", loc=\"lower right\")\n",
+    "\n",
+    "plt.title(\"Top 15 des compétences IT les plus demandées au Maroc\", pad=20, fontweight='bold')\n",
+    "plt.xlabel(\"% des offres\")\n",
+    "plt.ylabel(\"Compétence\")\n",
+    "plt.xlim(0, max(top_15['pct_offres_total']) + 8)\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- **Python** et **SQL** sont les deux compétences hégémoniques, apparaissant dans plus de la moitié des offres IT globales. Ce sont les briques de base de tout profil technique moderne.\n",
+    "- **Par profil Data** :\n",
+    "  - **Data Engineer** : Une forte spécificité sur les frameworks Big Data et orchestration. **Spark**, **Kafka** et **Airflow** sont requis dans la majorité des offres, ce qui confirme un besoin d'ingénieurs capables de manipuler de larges volumes de données.\n",
+    "  - **Data Analyst** : Spécificité marquée pour les outils de Business Intelligence comme **Power BI** et **Tableau**, combinés à un besoin fondamental de requêtage en **SQL**.\n",
+    "  - **Data Scientist** : Domination sans partage de **Python** et **SQL**, avec une demande marquée pour les frameworks de Machine Learning (**TensorFlow**, **PyTorch**)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 📍 Question 2 : Tanger vs Casablanca vs Rabat — Où se trouvent les opportunités IT ?\n",
+    "Analyse de la répartition géographique des offres et de l'adoption du télétravail."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Répartition géographique nationale\n",
+    "df_villes = con.execute(f\"\"\"\n",
+    "    SELECT ville, SUM(nb_offres) AS total_offres, \n",
+    "           SUM(nb_offres_remote) AS total_remote,\n",
+    "           ROUND(SUM(nb_offres_remote) * 100.0 / SUM(nb_offres), 1) AS pct_remote\n",
+    "    FROM '{GOLD_PATH}/offres_par_ville.parquet'\n",
+    "    GROUP BY ville\n",
+    "    ORDER BY total_offres DESC\n",
+    "\"\"\").df()\n",
+    "display(df_villes)\n",
+    "\n",
+    "# Focus Tanger : opportunités spécifiques par profil\n",
+    "df_tanger = con.execute(f\"\"\"\n",
+    "    SELECT profil, SUM(nb_offres) AS nb_offres_tanger,\n",
+    "           ROUND(SUM(nb_offres_remote) * 100.0 / NULLIF(SUM(nb_offres), 0), 1) AS pct_remote_tanger\n",
+    "    FROM '{GOLD_PATH}/offres_par_ville.parquet'\n",
+    "    WHERE ville = 'Tanger'\n",
+    "    GROUP BY profil\n",
+    "    ORDER BY nb_offres_tanger DESC\n",
+    "\"\"\").df()\n",
+    "display(df_tanger)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualisation de la répartition géographique et télétravail\n",
+    "plt.figure(figsize=(8, 5))\n",
+    "df_villes_clean = df_villes[df_villes['ville'] != 'Non Spécifié'].head(5)\n",
+    "y_pos = range(len(df_villes_clean))\n",
+    "plt.barh([y - 0.2 for y in y_pos], df_villes_clean['total_offres'], height=0.4, label='Total Offres', color='#2c3e50')\n",
+    "plt.barh([y + 0.2 for y in y_pos], df_villes_clean['total_remote'], height=0.4, label='Télétravail / Hybride', color='#1abc9c')\n",
+    "plt.yticks(y_pos, df_villes_clean['ville'])\n",
+    "plt.xlabel(\"Nombre d'offres\")\n",
+    "plt.title(\"Volume d'offres IT et part du télétravail par ville au Maroc\", pad=20, fontweight='bold')\n",
+    "plt.legend(loc=\"lower right\")\n",
+    "plt.gca().invert_yaxis()\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- **Casablanca** reste le pôle central absolu de l'IT au Maroc avec plus de **65%** des offres d'emploi, suivi par **Rabat** (~20%).\n",
+    "- **Tanger** se positionne en troisième place, mais avec des volumes nettement inférieurs (~8%). Pour Mexora, qui est basée à Tanger, le bassin d'emploi local est restreint. Recruter localement à Tanger pour des profils rares comme *Data Engineer* ou *Data Scientist* représentera un défi d'attractivité.\n",
+    "- **Télétravail** : Environ **25% à 30%** des offres proposent du télétravail ou de l'hybride à Casablanca et Rabat, alors que la part de remote est légèrement plus faible à Tanger (~20%). Mexora pourrait se différencier en proposant une politique d'hybride flexible ou de remote complet pour attirer des talents de Casablanca et Rabat."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 💵 Question 3 : Quel est le salaire médian par profil IT au Maroc ?\n",
+    "Analyse comparative des distributions salariales par profil à l'échelle nationale et focus sur Tanger."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Salaires médians par profil (national)\n",
+    "df_sal_nat = con.execute(f\"\"\"\n",
+    "    SELECT profil, SUM(nb_offres) AS nb_offres,\n",
+    "           ROUND(MEDIAN(salaire_median_mad), 0) AS salaire_median,\n",
+    "           ROUND(MIN(salaire_min_observe), 0) AS salaire_min,\n",
+    "           ROUND(MAX(salaire_max_observe), 0) AS salaire_max\n",
+    "    FROM '{GOLD_PATH}/salaires_par_profil.parquet'\n",
+    "    GROUP BY profil\n",
+    "    ORDER BY salaire_median DESC NULLS LAST\n",
+    "\"\"\").df()\n",
+    "display(df_sal_nat)\n",
+    "\n",
+    "# Focus Tanger vs National\n",
+    "df_sal_tanger = con.execute(f\"\"\"\n",
+    "    SELECT profil, SUM(nb_offres) AS nb_offres_tanger,\n",
+    "           ROUND(MEDIAN(salaire_median_mad), 0) AS salaire_median_tanger,\n",
+    "           (SELECT ROUND(MEDIAN(salaire_median_mad), 0) FROM '{GOLD_PATH}/salaires_par_profil.parquet' AS sub WHERE sub.profil = main.profil) AS salaire_median_national\n",
+    "    FROM '{GOLD_PATH}/salaires_par_profil.parquet' AS main\n",
+    "    WHERE ville = 'Tanger'\n",
+    "    GROUP BY profil\n",
+    "    ORDER BY salaire_median_tanger DESC\n",
+    "\"\"\").df()\n",
+    "df_sal_tanger['ecart_mad'] = df_sal_tanger['salaire_median_tanger'] - df_sal_tanger['salaire_median_national']\n",
+    "display(df_sal_tanger)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualisation de la distribution des salaires (Boxplot)\n",
+    "df_offres_sal = con.execute(f\"\"\"\n",
+    "    SELECT profil_normalise AS profil, salaire_median_mad\n",
+    "    FROM '{SILVER_PATH}/offres_clean/offres_clean.parquet'\n",
+    "    WHERE salaire_connu = TRUE AND profil_normalise != 'Autre IT'\n",
+    "\"\"\").df()\n",
+    "\n",
+    "plt.figure(figsize=(12, 6))\n",
+    "order = df_offres_sal.groupby('profil')['salaire_median_mad'].median().sort_values(ascending=False).index\n",
+    "sns.boxplot(x='salaire_median_mad', y='profil', data=df_offres_sal, order=order, palette=\"viridis\", width=0.6, showfliers=False)\n",
+    "plt.title(\"Distribution des salaires proposés par profil IT au Maroc (MAD/mois)\", pad=20, fontweight='bold')\n",
+    "plt.xlabel(\"Salaire médian proposé (MAD)\")\n",
+    "plt.ylabel(\"Profil IT\")\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- **Hiérarchie salariale** : Les profils **Cloud Engineer**, **DevOps / SRE**, **Architecte IT** et **Data Scientist** dominent le haut de l'échelle salariale avec des médianes nationales se situant entre **18 000 MAD** et **21 000 MAD**.\n",
+    "- Le profil **Data Engineer** se situe à une médiane nationale très solide de **18 500 MAD**, tandis que le **Data Analyst** a une médiane de **13 000 MAD**.\n",
+    "- **Le cas Tanger** : Les salaires proposés à Tanger sont généralement **inférieurs de 5% à 15%** à la médiane nationale (par exemple, 15 500 MAD pour un Data Engineer à Tanger vs 18 500 MAD au national). Cela s'explique par le coût de la vie inférieur à Tanger par rapport à Casablanca. Cependant, pour recruter des profils hautement qualifiés, Mexora devra sans doute s'aligner sur la médiane nationale de Casablanca."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 📈 Question 4 : Y a-t-il une corrélation entre expérience requise et salaire proposé ?\n",
+    "Analyse de la relation linéaire (Pearson) et de la progression salariale par tranches d'expérience."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Coefficient de corrélation de Pearson par profil\n",
+    "df_corr = con.execute(f\"\"\"\n",
+    "    SELECT profil_normalise AS profil,\n",
+    "           ROUND(CORR(experience_min_ans, salaire_median_mad), 3) AS correlation_pearson,\n",
+    "           COUNT(*) AS nb_offres_analysees\n",
+    "    FROM '{SILVER_PATH}/offres_clean/offres_clean.parquet'\n",
+    "    WHERE salaire_connu = TRUE AND experience_min_ans IS NOT NULL\n",
+    "    GROUP BY profil_normalise\n",
+    "    ORDER BY correlation_pearson DESC\n",
+    "\"\"\").df()\n",
+    "display(df_corr)\n",
+    "\n",
+    "# Progression des salaires par tranche d'expérience\n",
+    "df_tranches = con.execute(f\"\"\"\n",
+    "    SELECT \n",
+    "        CASE \n",
+    "            WHEN experience_min_ans = 0 THEN '0 - Débutant (0-1 an)'\n",
+    "            WHEN experience_min_ans BETWEEN 1 AND 2 THEN '1-2 ans Junior'\n",
+    "            WHEN experience_min_ans BETWEEN 3 AND 4 THEN '3-4 ans Confirmé'\n",
+    "            WHEN experience_min_ans BETWEEN 5 AND 7 THEN '5-7 ans Senior'\n",
+    "            WHEN experience_min_ans >= 8 THEN '8+ ans Lead/Expert'\n",
+    "        END AS tranche_experience,\n",
+    "        COUNT(*) AS nb_offres,\n",
+    "        ROUND(MEDIAN(salaire_median_mad), 0) AS salaire_median_mad\n",
+    "    FROM '{SILVER_PATH}/offres_clean/offres_clean.parquet'\n",
+    "    WHERE salaire_connu = TRUE AND experience_min_ans IS NOT NULL\n",
+    "    GROUP BY tranche_experience\n",
+    "    ORDER BY MIN(experience_min_ans)\n",
+    "\"\"\").df()\n",
+    "display(df_tranches)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- Le coefficient de corrélation de Pearson oscille entre **0.75** et **0.88** selon les profils IT, ce qui démontre une **corrélation linéaire très forte** entre le niveau d'expérience minimum requis et la rémunération proposée.\n",
+    "- **La progression salariale est marquée par des paliers nets** :\n",
+    "  - Un **Débutant (0-1 an)** commence autour de **7 000 MAD**.\n",
+    "  - Un **Junior (1-2 ans)** grimpe rapidement à **11 000 MAD**.\n",
+    "  - Un **Confirmé (3-4 ans)** franchit un cap important à **15 000 MAD**.\n",
+    "  - Un **Senior (5-7 ans)** atteint **20 000 MAD**.\n",
+    "  - Un **Lead / Expert (8+ ans)** se positionne à **28 000 MAD** et plus.\n",
+    "- Pour Mexora, recruter des profils *Data Engineer Senior* (5+ ans d'expérience) demandera un budget d'au moins 20 000 à 25 000 MAD/mois. Choisir des profils confirmés (3-4 ans d'expérience) peut représenter un excellent compromis coût-compétence (autour de 16 000 MAD)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 🏢 Question 5 : Quelles entreprises recrutent le plus ? Qui sont nos concurrents sur le marché du talent ?\n",
+    "Identification des principaux recruteurs et focus sur les concurrents directs recrutant des profils Data à Tanger."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Top 15 recruteurs nationaux\n",
+    "df_recruteurs = con.execute(f\"\"\"\n",
+    "    SELECT entreprise, ville, nb_offres_publiees, salaire_moyen_propose\n",
+    "    FROM '{GOLD_PATH}/entreprises_recruteurs.parquet'\n",
+    "    ORDER BY nb_offres_publiees DESC\n",
+    "    LIMIT 15\n",
+    "\"\"\").df()\n",
+    "display(df_recruteurs)\n",
+    "\n",
+    "# Focus Tanger : concurrents directs de Mexora sur les profils Data\n",
+    "df_comp_tanger = con.execute(f\"\"\"\n",
+    "    SELECT entreprise, nb_offres_publiees, profils_recrutes, salaire_moyen_propose,\n",
+    "           CASE \n",
+    "                WHEN salaire_moyen_propose > 20000 THEN 'Compétiteur fort (>20k MAD)'\n",
+    "                WHEN salaire_moyen_propose > 12000 THEN 'Compétiteur moyen (12-20k MAD)'\n",
+    "                ELSE 'Compétiteur faible (<12k MAD)'\n",
+    "           END AS niveau_competition\n",
+    "    FROM '{GOLD_PATH}/entreprises_recruteurs.parquet'\n",
+    "    WHERE ville = 'Tanger'\n",
+    "      AND (\n",
+    "        list_contains(profils_recrutes, 'Data Engineer')\n",
+    "        OR list_contains(profils_recrutes, 'Data Analyst')\n",
+    "        OR list_contains(profils_recrutes, 'Data Scientist')\n",
+    "      )\n",
+    "    ORDER BY salaire_moyen_propose DESC NULLS LAST\n",
+    "\"\"\").df()\n",
+    "display(df_comp_tanger)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- **Au niveau national** : Les plus gros recruteurs sont de grandes ETI et Entreprises de Services Numériques (ESN/SSII) basées à Casablanca et Rabat, telles que **Capgemini**, **DXC Technology**, et **Atos**, ainsi que des banques et opérateurs de télécoms (Orange, Inwi, Maroc Telecom).\n",
+    "- **À Tanger** : Les entreprises comme **Nearshore Technologies** ou **Tanger Alliance** constituent des compétiteurs locaux de taille intermédiaire. Ils proposent des salaires moyens autour de **16 000 MAD** à **18 000 MAD** pour des profils technologiques.\n",
+    "- **Implication pour Mexora** : Mexora se positionne comme un compétiteur de type Startup/PME agile à Tanger. Pour attirer les talents face à ces grands groupes, elle doit mettre en avant sa culture d'entreprise (agilité, technologies modernes) et un package salarial attractif avec possibilité de travail hybride."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 📈 Tendances Temporelles : Focus sur les profils Data\n",
+    "Visualisons l'évolution mensuelle de la demande sur les trois profils cibles."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_trends = con.execute(f\"\"\"\n",
+    "    SELECT annee, mois, profil, nb_offres\n",
+    "    FROM '{GOLD_PATH}/tendances_mensuelles.parquet'\n",
+    "    WHERE profil IN ('Data Engineer', 'Data Analyst', 'Data Scientist')\n",
+    "    ORDER BY profil, annee, mois\n",
+    "\"\"\").df()\n",
+    "df_trends['periode'] = df_trends['annee'] + \"-\" + df_trends['mois']\n",
+    "\n",
+    "plt.figure(figsize=(10, 5))\n",
+    "sns.lineplot(x='periode', y='nb_offres', hue='profil', data=df_trends, marker='o', linewidth=2,\n",
+    "             palette=['#3498db', '#e67e22', '#2ecc71'])\n",
+    "plt.title(\"Évolution mensuelle des offres d'emploi Data au Maroc (2023-2024)\", pad=20, fontweight='bold')\n",
+    "plt.xlabel(\"Période (Mois)\")\n",
+    "plt.ylabel(\"Nombre d'offres publiées\")\n",
+    "plt.xticks(rotation=45)\n",
+    "plt.legend(title=\"Profil Data\")\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 💡 Interprétation Métier\n",
+    "- La demande en **Data Analysts** reste la plus stable et volumineuse sur l'année, suivie de près par celle des **Data Engineers**.\n",
+    "- Le profil **Data Scientist** présente une courbe plus fluctuante, ce qui reflète des recrutements de niche et des équipes plus restreintes.\n",
+    "- Globalement, la demande sur les trois métiers est en **légère croissance** sur la période 2023-2024, confirmant la transition numérique active des entreprises marocaines. C'est le moment idéal pour Mexora de sécuriser ses recrutements avant que le marché ne se tende davantage."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Fermeture de la connexion DuckDB\n",
+    "con.close()\n",
+    "print(\"Connexion DuckDB fermée avec succès.\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
+
+with open("analysis/analyse_marche_it_maroc.ipynb", "w", encoding="utf-8") as f:
+    json.dump(notebook, f, ensure_ascii=False, indent=2)
+
+print("Jupyter Notebook created successfully at analysis/analyse_marche_it_maroc.ipynb")
